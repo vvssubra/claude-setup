@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { SkillRow, Theme } from '../types'
+import type { SkillRow } from '../types'
 
 const PANE = 'skills-pane'
 const skills = atom({ plugin: 'skills-pane', key: 'skills' } as const, [] as SkillRow[], {
@@ -9,22 +9,27 @@ const skills = atom({ plugin: 'skills-pane', key: 'skills' } as const, [] as Ski
 })
 const filter = atom({ plugin: 'skills-pane', key: 'filter' } as const, '')
 const offset = atom({ plugin: 'skills-pane', key: 'offset' } as const, 0)
-const theme = atom({ plugin: 'skills-pane', key: 'theme' } as const, { value: '', options: [] } as Theme)
+// UI colour: an accent laid over prompts, replies, tool rows and the spinner; 'off' leaves the engine's own.
+const PALETTES: Record<string, { accent: string; dim: string }> = {
+  off: { accent: '', dim: '' },
+  coral: { accent: '#e8603c', dim: '#a8472e' },
+  ocean: { accent: '#3fa7d6', dim: '#2a6f8f' },
+  forest: { accent: '#5cb85c', dim: '#3d7a3d' },
+  violet: { accent: '#a479e6', dim: '#6c4fa0' },
+  amber: { accent: '#f0a33a', dim: '#9c6a26' },
+}
+const palette = atom({ plugin: 'skills-pane', key: 'palette' } as const, 'off')
 
-// Claude Code's own theme row in /config: its current value and the names it may take.
-async function loadTheme($: EngineInterface): Promise<void> {
-  const row = (await $.config.list()).find(r => r.key === 'theme')
-  await update($, theme, () => ({ value: String(row?.value ?? ''), options: [...(row?.options ?? [])] }))
+async function cyclePalette($: EngineInterface): Promise<void> {
+  const names = Object.keys(PALETTES)
+  await update($, palette, cur => names[(names.indexOf(cur ?? 'off') + 1) % names.length] ?? 'off')
+  await $.store.set('palette', await read($, palette))
+  $.ui.invalidate('ui.render')
 }
 
-async function cycleTheme($: EngineInterface): Promise<void> {
-  const t = await read($, theme)
-  if (!t.options.length) return
-  const next = t.options[(t.options.indexOf(t.value) + 1) % t.options.length] ?? t.options[0]
-  if (next === undefined) return
-  const set = await $.config.set({ key: 'theme', value: next })
-  if ('deny' in set) $.ui.toast(`theme: ${set.deny}`)
-  await loadTheme($)
+async function accentOf($: EngineInterface): Promise<{ accent: string; dim: string } | null> {
+  const name = await read($, palette)
+  return name === 'off' ? null : (PALETTES[name] ?? null)
 }
 
 type Line = { kind: 'head'; source: string; count: number } | { kind: 'item'; skill: SkillRow }
@@ -57,14 +62,14 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'skills-pane', description: 'Show every skill in a pane; click one to run it' })
     await load($)
-    await loadTheme($)
+    const kept = await $.store.get('palette')
+    if (typeof kept === 'string' && kept in PALETTES) await update($, palette, () => kept)
     void $.ui.open({ id: PANE, title: 'Skills', columns: 120 }) // asks the widest dock the surface allows, 45% of the window
     return next(e)
   })
 
   on('command.run', { command: 'skills-pane' }, async $ => {
     await load($)
-    await loadTheme($)
     const opened = await $.ui.open({ id: PANE, title: 'Skills', columns: 120 }) // asks the widest dock the surface allows, 45% of the window
     const n = (await read($, skills)).length
     return { text: opened.isPlaced ? `Skills pane opened, ${n} skills.` : `Skills pane not placed: ${opened.reason}` }
@@ -73,6 +78,51 @@ export const register: Register = on => {
   on('ui.scroll', { component: 'Pane', requestId: PANE }, async ($, e) => {
     await update($, offset, n => Math.max(0, (n ?? 0) + e.by))
     return {}
+  })
+
+  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    const c = await accentOf($)
+    if (!c) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    if (e.props.origin.kind !== 'composer') {
+      const original = await next(e)
+      return original ? <Box flexDirection="row"><Text color={c.dim}>▎</Text>{original}</Box> : original
+    }
+    return (
+      <Box flexDirection="row">
+        <Text color={c.accent} bold>▌ ❯ </Text>
+        <Text color={c.accent} wrap="wrap">{e.props.text}</Text>
+      </Box>
+    )
+  })
+
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const c = await accentOf($)
+    const original = await next(e)
+    if (!c || !original) return original
+    const { Box } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="row">
+        <Box width={1} flexShrink={0} backgroundColor={e.props.isFirstOfReply ? c.accent : c.dim} />
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} paddingLeft={1}>{original}</Box>
+      </Box>
+    )
+  })
+
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const c = await accentOf($)
+    const original = await next(e)
+    if (!c || !original) return original
+    const { Box, Text } = $.ui.resolve(e)
+    return <Box flexDirection="row"><Text color={c.dim}>▎</Text>{original}</Box>
+  })
+
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    const c = await accentOf($)
+    const original = await next(e)
+    if (!c || !original) return original
+    const { Box, Text } = $.ui.resolve(e)
+    return <Box flexDirection="row"><Text color={c.accent}>◆ </Text>{original}</Box>
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
@@ -102,8 +152,8 @@ export const register: Register = on => {
             <Text dimColor>
               {list.length}/{all.length}
             </Text>
-            <Button key="theme" plain onPress={() => void cycleTheme($)}>
-              🎨 {(await read($, theme)).value || 'theme'}
+            <Button key="palette" plain onPress={() => void cyclePalette($)}>
+              🎨 {await read($, palette)}
             </Button>
           </Box>
         </Box>

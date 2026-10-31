@@ -19,7 +19,7 @@ The script adds three marketplaces and installs seven mods at user scope:
 | coral-skin | promptadvisers/claude-mods-starter-kit | Coral, ink and cream reskin, `/skin` |
 | model-router | promptadvisers/claude-mods-starter-kit | `/router` sends subagents to Sonnet or Haiku |
 | filetree | data-goblin/claude-code-filetree | IDE-style file tree pane, `/filetree` |
-| skills-pane | this repo | Pane of every skill, click to run, theme button |
+| skills-pane | this repo | Pane of every skill, click to run, UI colour button |
 
 The Anthropic samples have no GitHub marketplace, so the script clones their repo to `~/.claude/claude-code-playground` and points a marketplace at that folder. Keep the folder.
 
@@ -45,6 +45,6 @@ In the desktop app, where `/plugin` does not run: click + next to the prompt box
 - Filter box searches name, source and description.
 - Skills grouped by source (plugin name or `user`); click a row to run it as `/name`.
 - `▴ prev` / `▾ next` page through the list.
-- `🎨 <theme>` in the header cycles Claude Code's theme (dark, light, daltonized, ansi variants).
+- `🎨 <palette>` in the header cycles a UI colour (off, coral, ocean, forest, violet, amber) laid over your prompts, Claude's replies, tool rows and the spinner. Remembered across sessions.
 
 Built with Claude Code's plugin-authoring skill. Source in `plugins/skills-pane/`; `claude plugin validate plugins/skills-pane` and `claude plugin test plugins/skills-pane` check it.

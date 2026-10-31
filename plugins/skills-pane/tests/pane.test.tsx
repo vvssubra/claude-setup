@@ -17,9 +17,8 @@ test('the pane lists a skill row on desktop and terminal', async ($, on) => {
   ] }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  let current = 'dark'
-  on('config.list', () => ({ value: [{ key: 'theme', label: 'Theme', kind: 'enum', value: current, options: ['dark', 'light'] }] }))
-  on('config.set', (_, e) => { current = String(e.value); return { value: e.value } })
+  on('store.get', () => ({ value: undefined }))
+  on('store.set', () => ({ value: undefined }))
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 
@@ -28,12 +27,11 @@ test('the pane lists a skill row on desktop and terminal', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^3\/3$/ }))?.text).toBe('3/3')
     expect(await ui.find({ type: 'Text', text: /caveman/ })).toBeTruthy()
     expect(await ui.find({ type: 'Button', key: 'caveman' })).toBeTruthy()
-    const was = current
-    const next = was === 'dark' ? 'light' : 'dark'
-    expect((await ui.find({ key: 'theme' }))?.text).toBe(`🎨 ${was}`)
-    await ui.press({ key: 'theme' })
-    expect(current).toBe(next)
-    expect((await ui.find({ key: 'theme' }))?.text).toBe(`🎨 ${next}`)
+    const was = (await ui.find({ key: 'palette' }))?.text ?? ''
+    await ui.press({ key: 'palette' })
+    const now = (await ui.find({ key: 'palette' }))?.text ?? ''
+    expect(now.startsWith('🎨 ')).toBe(true)
+    expect(now === was).toBe(false)
     await ui.unmount()
   }
 })
