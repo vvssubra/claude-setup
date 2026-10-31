@@ -46,5 +46,6 @@ In the desktop app, where `/plugin` does not run: click + next to the prompt box
 - Skills grouped by source (plugin name or `user`); click a row to run it as `/name`.
 - `▴ prev` / `▾ next` page through the list.
 - `🎨 <palette>` in the header cycles a UI colour (off, coral, ocean, forest, violet, amber) laid over your prompts, Claude's replies, tool rows and the spinner. Remembered across sessions.
+- `Aa <colour>` beside it cycles the text colour (default, cream, white, grey, sage, sky) of your prompts and Claude's replies. A coloured reply draws as plain text, so headings and code fences lose their look; `default` keeps markdown.
 
 Built with Claude Code's plugin-authoring skill. Source in `plugins/skills-pane/`; `claude plugin validate plugins/skills-pane` and `claude plugin test plugins/skills-pane` check it.

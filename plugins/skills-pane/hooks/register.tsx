@@ -32,6 +32,29 @@ async function accentOf($: EngineInterface): Promise<{ accent: string; dim: stri
   return name === 'off' ? null : (PALETTES[name] ?? null)
 }
 
+// Text colour for prompts and replies; 'default' keeps the engine's. A coloured reply is drawn as
+// plain text, since the Markdown element takes no colour: headings and code fences lose their look.
+const TEXT_COLORS: Record<string, string> = {
+  default: '',
+  cream: '#f6efe3',
+  white: '#ffffff',
+  grey: '#b8ad9c',
+  sage: '#9cc5a1',
+  sky: '#7fd1ff',
+}
+const textColor = atom({ plugin: 'skills-pane', key: 'textColor' } as const, 'default')
+
+async function cycleTextColor($: EngineInterface): Promise<void> {
+  const names = Object.keys(TEXT_COLORS)
+  await update($, textColor, cur => names[(names.indexOf(cur ?? 'default') + 1) % names.length] ?? 'default')
+  await $.store.set('textColor', await read($, textColor))
+  $.ui.invalidate('ui.render')
+}
+
+async function textColorOf($: EngineInterface): Promise<string | null> {
+  return TEXT_COLORS[await read($, textColor)] || null
+}
+
 type Line = { kind: 'head'; source: string; count: number } | { kind: 'item'; skill: SkillRow }
 
 async function load($: EngineInterface): Promise<void> {
@@ -64,6 +87,8 @@ export const register: Register = on => {
     await load($)
     const kept = await $.store.get('palette')
     if (typeof kept === 'string' && kept in PALETTES) await update($, palette, () => kept)
+    const keptText = await $.store.get('textColor')
+    if (typeof keptText === 'string' && keptText in TEXT_COLORS) await update($, textColor, () => keptText)
     void $.ui.open({ id: PANE, title: 'Skills', columns: 120 }) // asks the widest dock the surface allows, 45% of the window
     return next(e)
   })
@@ -82,29 +107,31 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     const c = await accentOf($)
-    if (!c) return next(e)
+    const tc = await textColorOf($)
+    if (!c && !tc) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     if (e.props.origin.kind !== 'composer') {
       const original = await next(e)
-      return original ? <Box flexDirection="row"><Text color={c.dim}>▎</Text>{original}</Box> : original
+      return original && c ? <Box flexDirection="row"><Text color={c.dim}>▎</Text>{original}</Box> : original
     }
     return (
       <Box flexDirection="row">
-        <Text color={c.accent} bold>▌ ❯ </Text>
-        <Text color={c.accent} wrap="wrap">{e.props.text}</Text>
+        <Text color={c?.accent} bold>▌ ❯ </Text>
+        <Text color={tc ?? c?.accent} wrap="wrap">{e.props.text}</Text>
       </Box>
     )
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const c = await accentOf($)
-    const original = await next(e)
-    if (!c || !original) return original
-    const { Box } = $.ui.resolve(e)
+    const tc = await textColorOf($)
+    const { Box, Text } = $.ui.resolve(e)
+    const body = tc ? <Text color={tc} wrap="wrap">{e.props.text}</Text> : await next(e)
+    if (!c || !body) return body
     return (
       <Box flexDirection="row">
         <Box width={1} flexShrink={0} backgroundColor={e.props.isFirstOfReply ? c.accent : c.dim} />
-        <Box flexDirection="column" flexGrow={1} flexShrink={1} paddingLeft={1}>{original}</Box>
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} paddingLeft={1}>{body}</Box>
       </Box>
     )
   })
@@ -154,6 +181,9 @@ export const register: Register = on => {
             </Text>
             <Button key="palette" plain onPress={() => void cyclePalette($)}>
               🎨 {await read($, palette)}
+            </Button>
+            <Button key="text" plain onPress={() => void cycleTextColor($)}>
+              Aa {await read($, textColor)}
             </Button>
           </Box>
         </Box>

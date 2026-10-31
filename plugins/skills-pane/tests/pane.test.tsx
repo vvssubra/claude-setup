@@ -32,6 +32,11 @@ test('the pane lists a skill row on desktop and terminal', async ($, on) => {
     const now = (await ui.find({ key: 'palette' }))?.text ?? ''
     expect(now.startsWith('🎨 ')).toBe(true)
     expect(now === was).toBe(false)
+    const tWas = (await ui.find({ key: 'text' }))?.text ?? ''
+    await ui.press({ key: 'text' })
+    const tNow = (await ui.find({ key: 'text' }))?.text ?? ''
+    expect(tNow.startsWith('Aa ')).toBe(true)
+    expect(tNow === tWas).toBe(false)
     await ui.unmount()
   }
 })
