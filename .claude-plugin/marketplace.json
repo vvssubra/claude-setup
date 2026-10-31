@@ -1,0 +1,8 @@
+{
+  "name": "vvs-claude-setup",
+  "owner": { "name": "vvssubra" },
+  "metadata": { "description": "VVS Claude Code setup: the skills-pane mod and an install script for the rest." },
+  "plugins": [
+    { "name": "skills-pane", "source": "./plugins/skills-pane", "description": "A pane listing every skill; click one to run it, filter box on top, theme button in the header." }
+  ]
+}

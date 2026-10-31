@@ -1,0 +1,6 @@
+{
+  "name": "skills-pane",
+  "version": "0.1.0",
+  "description": "A pane listing every installed skill; click one to run it. Filter box on top.",
+  "types": "./types/index.d.ts"
+}
